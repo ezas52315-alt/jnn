@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ҚМЖ Генераторы - Ұстаздарға арналған көмекші</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        /* Кестенің алдын ала қарау стилі (Word-қа көшірілетін форматтан сәл бөлек, UI үшін) */
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+        .preview-table th, .preview-table td {
+            border: 1px solid #d1d5db;
+            padding: 0.5rem;
+            vertical-align: top;
+        }
+        .preview-table th {
+            background-color: #f9fafb;
+            font-weight: 600;
+            text-align: left;
+        }
+        
+        /* Жүктелу анимациясы */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Хабарлама (Toast) стилі */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #10B981; /* Emerald 500 */
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 50;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+        }
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
+
+        /* Скроллбардты әдемілеу */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8; 
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        
+        <header class="mb-8 text-center md:text-left flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">ҚМЖ Генераторы <span class="text-blue-600">AI</span></h1>
+                <p class="text-gray-500 mt-2">ҚР Оқу-ағарту министрлігі стандарттарына сай сабақ жоспарын құрастырушы</p>
+            </div>
+            <div class="mt-4 md:mt-0 text-sm font-medium text-gray-500 bg-blue-50 px-4 py-2 rounded-lg border border-blue-100">
+                Заманауи әдіс-тәсілдер • Жоғары деңгейлі жауаптар
+            </div>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-6">
+            
+            <!-- Сол жақ: Форма -->
+            <div class="w-full lg:w-1/3 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit">
+                <h2 class="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">Сабақ мәліметтері</h2>
+                
+                <form id="lessonForm" class="space-y-4 text-sm">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-600 font-medium mb-1">Бөлім атауы</label>
+                            <input type="text" id="section" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Мысалы: Адамгершілік..." required>
+                        </div>
+                        <div>
+                            <label class="block text-gray-600 font-medium mb-1">Мектеп</label>
+                            <input type="text" id="school" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Мектеп атауы" required>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-600 font-medium mb-1">Пән</label>
+                            <select id="subject" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" required>
+                                <option value="Қазақ тілі">Қазақ тілі</option>
+                                <option value="Қазақ әдебиеті">Қазақ әдебиеті</option>
+                                <option value="Қазақстан тарихы">Қазақстан тарихы</option>
+                                <option value="Дүниежүзі тарихы">Дүниежүзі тарихы</option>
+                                <option value="География">География</option>
+                                <option value="Биология">Биология</option>
+                                <option value="Математика">Математика</option>
+                                <option value="Информатика">Информатика</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-gray-600 font-medium mb-1">Мұғалім</label>
+                            <input type="text" id="teacher" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Аты-жөні" required>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-600 font-medium mb-1">Сынып</label>
+                            <select id="grade" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" required>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                                <option value="7">7</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                                <option value="11">11</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-gray-600 font-medium mb-1">Күні</label>
+                            <input type="date" id="date" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" required>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-gray-600 font-medium mb-1">Сабақ тақырыбы</label>
+                        <input type="text" id="topic" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Тақырыпты толық жазыңыз" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-gray-600 font-medium mb-1">Оқу мақсаты</label>
+                        <textarea id="objectives" rows="2" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none resize-none" placeholder="Мысалы: 5.2.4.1. Көркем шығармадан алған әсерін сипаттап..." required></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-gray-600 font-medium mb-1">Арнайы сұраныс / Мәтін / Нұсқау</label>
+                        <textarea id="promptText" rows="4" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none resize-none" placeholder="Осы жерге шығарма мәтінін, кейіпкерлерді немесе сабақта қандай әдістер болғанын қалайтыныңызды жазыңыз..." required></textarea>
+                        <p class="text-xs text-gray-400 mt-1">Осы мәліметке сүйеніп AI сабақ барысын генерациялайды.</p>
+                    </div>
+
+                    <button type="submit" id="generateBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex justify-center items-center gap-2">
+                        <span>Генерациялау</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Оң жақ: Нәтиже және Алдын ала қарау -->
+            <div class="w-full lg:w-2/3 bg-white p-0 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col relative overflow-hidden">
+                
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 md:p-0 mb-4 border-b pb-4">
+                    <h2 class="text-xl font-semibold text-gray-700">Дайын жоспар</h2>
+                    <div class="flex gap-2">
+                        <button id="copyBtnPlain" class="bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium py-2 px-3 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            Жай көшіру (Таза)
+                        </button>
+                        <button id="copyBtn" class="bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium py-2 px-3 rounded-lg transition duration-200 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                            Word-қа (Қатаң)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Жүктелу экраны -->
+                <div id="loadingScreen" class="absolute inset-0 bg-white/90 z-10 flex flex-col items-center justify-center hidden">
+                    <div class="loader mb-4"></div>
+                    <p class="text-blue-600 font-medium">Әдіскерлік сараптама жасалып, жоспар құрастырылуда...</p>
+                    <p class="text-gray-400 text-sm mt-2 text-center max-w-md px-4">Бұл шамамен 10-15 секунд алуы мүмкін. Оқушылардың ықтимал жауаптары жазылуда.</p>
+                </div>
+
+                <!-- Бос экран -->
+                <div id="emptyScreen" class="flex-1 flex flex-col items-center justify-center text-gray-400 py-20">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p>Мәліметтерді толтырып, "Генерациялау" батырмасын басыңыз.</p>
+                </div>
+
+                <!-- Алдын ала қарау контейнері (UI үшін) -->
+                <div id="previewContainer" class="overflow-x-auto hidden px-4 md:px-0">
+                    <!-- HTML арқылы толтырылады -->
+                </div>
+
+                <!-- Жасырын контейнер (Тек Word-қа көшіру үшін арнайы inline стильдері бар кесте) -->
+                <div id="wordExportContainer" style="position: absolute; left: -9999px; top: -9999px;">
+                    <!-- Бұл жерге Word-қа арналған қатаң пішімдегі кесте түседі -->
+                </div>
+                
+                <!-- Жасырын контейнер (Жай көшіру үшін) -->
+                <div id="wordExportContainerPlain" style="position: absolute; left: -9999px; top: -9999px;">
+                    <!-- Бұл жерге Word-қа арналған таза кесте түседі -->
+                </div>
+                
+            </div>
+        </div>
+    </div>
+
+    <!-- Хабарлама (Toast) -->
+    <div id="toast">Кесте алмасу буферіне көшірілді! Енді Word-қа қоя беріңіз. (Ctrl+V)</div>
+
+    <script>
+        // Бүгінгі күнді автоматты түрде қою
+        document.getElementById('date').valueAsDate = new Date();
+
+        // UI элементтері
+        const form = document.getElementById('lessonForm');
+        const generateBtn = document.getElementById('generateBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const copyBtnPlain = document.getElementById('copyBtnPlain');
+        const loadingScreen = document.getElementById('loadingScreen');
+        const emptyScreen = document.getElementById('emptyScreen');
+        const previewContainer = document.getElementById('previewContainer');
+        const wordExportContainer = document.getElementById('wordExportContainer');
+        const wordExportContainerPlain = document.getElementById('wordExportContainerPlain');
+        const toast = document.getElementById('toast');
+
+        // Gemini API баптаулары
+        const API_KEY = ""; // Canvas ортасында автоматты түрде беріледі
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${API_KEY}`;
+
+        // Toast хабарламасын көрсету функциясы
+        function showToast(message) {
+            toast.textContent = message;
+            toast.className = "show";
+            setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 3000);
+        }
+
+        // Жүктелу күйін басқару
+        function setLoading(isLoading) {
+            if (isLoading) {
+                generateBtn.disabled = true;
+                generateBtn.classList.add('opacity-70', 'cursor-wait');
+                loadingScreen.classList.remove('hidden');
+                emptyScreen.classList.add('hidden');
+                previewContainer.classList.add('hidden');
+            } else {
+                generateBtn.disabled = false;
+                generateBtn.classList.remove('opacity-70', 'cursor-wait');
+                loadingScreen.classList.add('hidden');
+            }
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Мәліметтерді жинау
+            const formData = {
+                section: document.getElementById('section').value,
+                school: document.getElementById('school').value,
+                subject: document.getElementById('subject').value,
+                teacher: document.getElementById('teacher').value,
+                grade: document.getElementById('grade').value,
+                date: document.getElementById('date').value,
+                topic: document.getElementById('topic').value,
+                objectives: document.getElementById('objectives').value,
+                promptText: document.getElementById('promptText').value
+            };
+
+            setLoading(true);
+
+            // LLM-ге арналған жүйелік нұсқау (Persona)
+            const systemInstruction = `Сіз ҚР Оқу-ағарту министрлігі жанындағы ең мықты әдіскер, тілші, әдебиетші ғалым дәрежесіндегі ұстазсыз.
+Сіздің басты міндетіңіз - ауқымды, аса жоғары деңгейдегі, өте толыққанды Қысқа мерзімді сабақ жоспарын (ҚМЖ) құрастыру.
+ҚАТАҢ ТАЛАП (Сабақ мақсаты): Сабақ мақсатының соңғы сөйлемі (баяндауышы) ешқашан "-у" (мысалы, түсіну, талдау, білу) жұрнағымен аяқталмауы тиіс! Ол міндетті түрде тиянақты етістікпен, яғни "-йды", "-ады", "-еді" жұрнақтарымен (Мысалы: "...талдайды", "...баға береді", "...жазады", "...қолданады") аяқталуы ШАРТ.
+ҚАТАҢ ТАЛАПТАР (Педагог әрекеті бағаны үшін):
+Сабақтың ортасындағы әрбір тапсырма міндетті түрде "1-тапсырма:", "2-тапсырма:" деп нөмірленіп басталуы ШАРТ.
+Құрылымы МІНДЕТТІ ТҮРДЕ мына реттілікпен берілуі шарт (осы тізбекті бұзбаңыз):
+1. Тапсырма нөмірі, әдіс атауы ЖӘНЕ ТАПСЫРМАНЫҢ ТОЛЫҚ ШАРТЫ (тек әдіс емес, оқушылар нақты не істеуі керек, қандай сұраққа жауап береді, соның бәрін толық жазыңыз). Мысалы: "1-тапсырма. ПОПС әдісі. Тапсырма шарты: Берілген мәтінді оқып, бас кейіпкердің әрекетіне баға беріңіздер..."
+2. ОМ: (Негізделген оқу мақсаты)
+3. Саралау: (Дифференциация өте көлемді, терең жазылуы тиіс. А, В, С деңгейлі оқушыларға арналған нақты қадамдар, нәтиже немесе қолдау түрлері).
+4. ФС: (Функционалдық сауаттылық - оқу, жазу, математикалық немесе жаратылыстану сауаттылығы бойынша нақты қандай дағды қалыптасатыны көлемді жазылады).
+
+ҚАТАҢ ТАЛАПТАР (Оқушы әрекеті бағаны үшін - БҰЛ ЕҢ МАҢЫЗДЫ БӨЛІК):
+1. МАКСИМАЛДЫ КӨЛЕМ ЖӘНЕ ТЕРЕҢДІК: Оқушының ықтимал жауаптары өте кең, толыққанды, ең максималды түрде жазылуы ШАРТ. Әр жауап кем дегенде 200-300 сөзден тұратын ғылыми зерттеу, ауқымды эссе, толыққанды дебат сөзі немесе күрделі жоба қорғау сөзі болуы керек! Қысқа (1-2 сөйлем) немесе үстіртін жауаптарға МҮЛДЕМ ҚАТАҢ ТЫЙЫМ САЛЫНАДЫ! Жауаптар барынша көп, тармақталған, ауқымды болуы тиіс.
+2. ҮЗДІК ОҚУШЫ ДЕҢГЕЙІ: Жауаптар сыныптағы ең мықты, ғылыми жұмыстарды тереңдікпен жазатын озат оқушының деңгейінде болуы керек. Оқушылар осы кестеге қарап терең білім алатындай академиялық, ғылыми сарапталған, көркем, мағыналы, креативті жауаптар жазыңыз.
+3. ДӘЛЕЛДЕР МЕН ЦИТАТАЛАР: Шығармадан немесе тақырыптан нақты мысалдар, аргументтер, ғылыми дәйектер келтірілген ауқымды эссе, пікірталас сөздері, жоба қорғау мәтіндерін жазыңыз.
+4. КӨРНЕКІЛІК ЖӘНЕ ҚҰРЫЛЫМ: Оқушы жауаптарының ішінде міндетті түрде күрделі ішкі кестелерді (HTML <table border="1">), шартты белгілерді (✅, ❌, 📌, 🎯), сызбалар мен түрлі түстерді (мысалы, HTML <span style="color: blue;">, <strong style="color: #059669;"> т.б.) өте көп қолданыңыз. Әр тапсырманың жауабы визуалды түрде бай әрі құрылымды болуы шарт.`;
+
+            // LLM-ге арналған қолданушы сұранысы
+            const userPrompt = `Пән: ${formData.subject}
+Сынып: ${formData.grade}
+Тақырып: ${formData.topic}
+Оқу мақсаты: ${formData.objectives}
+Мұғалімнің арнайы сұранысы: ${formData.promptText}
+
+Сабақ мақсаты: Міндетті түрде тиянақты етістікпен (-йды, -ады, -еді, жазады, талдайды, бағалайды) аяқталсын. ТИЯНАҚСЫЗ "-у" (түсіну, білу) жұрнағымен АЯҚТАЛМАСЫН!
+Сабақ ортасындағы тапсырмаларды міндетті түрде "1-тапсырма:", "2-тапсырма:" деп нөмірлеңіз. Педагог әрекетін "Тапсырма шарты (нақты не істейтіні, қандай сұрақ берілетіні толық жазылсын) -> ОМ -> Саралау -> ФС" реттілігімен қатаң сақтап беріңіз. Тек әдіс атын жазып қоймай, тапсырманың өзін толық жазыңыз.
+Оқушы әрекетіндегі ықтимал жауаптарды ең үздік, ғылыми жұмыстар қорғайтын озат оқушының деңгейінде жазыңыз. Әр жауап кем дегенде 200-300 сөзден тұрсын. Тіпті кішігірім тапсырманың өзін терең ғылыми талдаулармен, цитаталармен, ауқымды және МАКСИМАЛДЫ көлемде жазыңыз. Жауаптар ӨТЕ КӨП ЖӘНЕ ТЕРЕҢ БОЛСЫН. Жауаптардың ішінде міндетті түрде түрлі-түсті маркерлермен, ішкі HTML кестелермен (<table border='1'>) көркемделген, креативті жобалар немесе эсселер болсын. Жалаң сөйлем, қысқа жауаптар МҮЛДЕМ қабылданбайды!`;
+
+            // JSON Schema құру
+            const schema = {
+                type: "OBJECT",
+                properties: {
+                    "sabakMaksaty": { type: "STRING", description: "Сабақ мақсаты (Ауқымды, СМАРТ мақсаттар. Міндетті түрде -йды, -ады, -еді сияқты тиянақты етістікпен аяқталуы шарт. -у жұрнағымен аяқталмасын!)" },
+                    "kundylyktar": { type: "STRING", description: "Құндылықтар (терең ашылған)" },
+                    "basy": {
+                        type: "OBJECT",
+                        description: "Сабақтың басы (Ұйымдастыру, ой шақыру 5-10 мин)",
+                        properties: {
+                            "pedagog": { type: "STRING", description: "Мұғалімнің іс-әрекеті, түстермен және эмоджилермен" },
+                            "okushy": { type: "STRING", description: "Оқушы әрекеті, МАКСИМАЛДЫ көлемдегі ықтимал жауаптар, терең талдау" },
+                            "bagalau": { type: "STRING" },
+                            "resurs": { type: "STRING" }
+                        }
+                    },
+                    "ortasy": {
+                        type: "ARRAY",
+                        description: "Сабақтың ортасы (Негізгі тапсырмалар 30 мин). Кемі 3-4 АУҚЫМДЫ тапсырма.",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                "pedagog": { type: "STRING", description: "ҚАТАҢ РЕТТІЛІК: 1) Тапсырма нөмірі (1-тапсырма:), әдіс атауы ЖӘНЕ ТАПСЫРМАНЫҢ ТОЛЫҚ ШАРТЫ (тек әдіс емес, не істеу керектігі толық түсіндірілсін). 2) ОМ: ... 3) Саралау: (өте көлемді, терең). 4) ФС: (Функционалдық сауаттылық). Осы 4 пункт міндетті түрде болуы керек." },
+                                "okushy": { type: "STRING", description: "Оқушы әрекеті және ЫҚТИМАЛ ЖАУАПТАРЫ. ӨТЕ КӨЛЕМДІ, МАКСИМАЛДЫ ҰЗЫН (кемі 200-300 сөз). ЕҢ ОЗАТ, ҒЫЛЫМИ ЖҰМЫС ҚОРҒАЙТЫН ОҚУШЫ ДЕҢГЕЙІНДЕ, ТЕРЕҢ ТАЛДАУЛАРМЕН. Жауаптарды міндетті түрде ішкі HTML кестелермен (<table border='1'>), түстермен, шартты белгілермен, ғылыми дәлелдермен өте көлемді етіп беріңіз. Қысқа жауаптарға рұқсат жоқ!" },
+                                "bagalau": { type: "STRING", description: "Қалыптастырушы бағалау және нақты дескрипторлар (түрлі түспен)" },
+                                "resurs": { type: "STRING", description: "Қолданылатын ресурстар" }
+                            }
+                        }
+                    },
+                    "sony": {
+                        type: "OBJECT",
+                        description: "Сабақтың соңы (Рефлексия, үй тапсырмасы 5 мин)",
+                        properties: {
+                            "pedagog": { type: "STRING" },
+                            "okushy": { type: "STRING", description: "МАКСИМАЛДЫ көлемдегі, өте ауқымды рефлексия жауаптары" },
+                            "bagalau": { type: "STRING" },
+                            "resurs": { type: "STRING" }
+                        }
+                    }
+                },
+                required: ["sabakMaksaty", "kundylyktar", "basy", "ortasy", "sony"]
+            };
+
+            // API Payload
+            const payload = {
+                contents: [{ parts: [{ text: userPrompt }] }],
+                systemInstruction: { parts: [{ text: systemInstruction }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: schema
+                }
+            };
+
+            try {
+                // Exponential backoff үшін қайталау логикасы қажет болған жағдайда (қарапайым fetch)
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                
+                if (result.candidates && result.candidates.length > 0) {
+                    const jsonText = result.candidates[0].content.parts[0].text;
+                    const generatedData = JSON.parse(jsonText);
+                    
+                    // Кестелерді құру
+                    renderTables(formData, generatedData);
+                    
+                    previewContainer.classList.remove('hidden');
+                    copyBtn.disabled = false;
+                    copyBtnPlain.disabled = false;
+                } else {
+                    showToast("Қате пайда болды. Қайта көріңіз.");
+                }
+            } catch (error) {
+                console.error(error);
+                showToast("Желі немесе сервер қатесі.");
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        function renderTables(formData, data) {
+            // Мәтіндегі жаңа жолдарды <br> тегіне ауыстыратын көмекші функция (UI үшін)
+            const formatText = (text) => {
+                if(!text) return "";
+                // Алдымен HTML тегтерінің арасындағы артық бос жолдарды алып тастаймыз
+                let processed = text.replace(/>\s*?\n\s*?</g, '><');
+                // Қалған жаңа жолдарды <br> тегіне ауыстырамыз
+                return processed.replace(/\n/g, '<br>');
+            };
+
+            // Word-қа арналған ішкі кестелерді қатаң форматтайтын арнайы функция
+            const formatWordText = (text) => {
+                if(!text) return "";
+                let processed = text.replace(/>\s*?\n\s*?</g, '><');
+                
+                // Ішкі кестелер Word-та созылып кетпеуі үшін қатаң стильдер қосамыз (word-break қосылды)
+                processed = processed.replace(/<table[^>]*>/gi, '<table border="1" cellpadding="3" cellspacing="0" width="100%" style="width: 100%; border-collapse: collapse; margin-top: 5px; margin-bottom: 5px; table-layout: fixed; word-break: break-word; overflow-wrap: break-word; font-size: 10pt;">');
+                processed = processed.replace(/<th[^>]*>/gi, '<th style="border: 1pt solid black; padding: 4px; background-color: #f2f2f2; word-break: break-word;">');
+                processed = processed.replace(/<td[^>]*>/gi, '<td style="border: 1pt solid black; padding: 4px; word-break: break-word;">');
+                
+                return processed.replace(/\n/g, '<br>');
+            };
+
+            // Жай (Таза) форматқа арналған тазалау функциясы
+            const formatPlainText = (text) => {
+                if(!text) return "";
+                let processed = text.replace(/>\s*?\n\s*?</g, '><');
+                processed = processed.replace(/<table[^>]*>/gi, '<table border="1">');
+                processed = processed.replace(/<th[^>]*>/gi, '<th>');
+                processed = processed.replace(/<td[^>]*>/gi, '<td>');
+                return processed.replace(/\n/g, '<br>');
+            };
+
+            // 1. UI ҮШІН АЛДЫН АЛА ҚАРАУ КЕСТЕСІ (Tailwind сыныптарымен)
+            let previewHtml = `
+                <h3 class="text-center font-bold mb-2">Қысқа мерзімді (сабақ) жоспар</h3>
+                <table class="preview-table mb-6">
+                    <tbody>
+                        <tr>
+                            <th class="w-1/4">Бөлім:</th>
+                            <td class="w-1/4">${formData.section}</td>
+                            <th class="w-1/4">Мектеп:</th>
+                            <td class="w-1/4">${formData.school}</td>
+                        </tr>
+                        <tr>
+                            <th>Пәні:</th>
+                            <td>${formData.subject}</td>
+                            <th>Мұғалім:</th>
+                            <td>${formData.teacher}</td>
+                        </tr>
+                        <tr>
+                            <th>Күні:</th>
+                            <td colspan="3">${formData.date}</td>
+                        </tr>
+                        <tr>
+                            <th>Сынып: ${formData.grade}</th>
+                            <td>Қатысқандар саны: </td>
+                            <th>Қатыспағандар:</th>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <th>Тақырып:</th>
+                            <td colspan="3" class="font-semibold">${formData.topic}</td>
+                        </tr>
+                        <tr>
+                            <th>Оқу мақсаты:</th>
+                            <td colspan="3">${formatText(formData.objectives)}</td>
+                        </tr>
+                        <tr>
+                            <th>Сабақ мақсаты:</th>
+                            <td colspan="3">${formatText(data.sabakMaksaty)}</td>
+                        </tr>
+                        <tr>
+                            <th>Құндылықтар:</th>
+                            <td colspan="3">${formatText(data.kundylyktar)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 class="text-center font-bold mb-2">Сабақтың барысы</h3>
+                <table class="preview-table">
+                    <thead>
+                        <tr>
+                            <th class="w-[10%] text-center">Сабақ кезеңі/Уақыт</th>
+                            <th class="w-[25%] text-center">Педагогтің әрекеті</th>
+                            <th class="w-[35%] text-center">Оқушының әрекеті</th>
+                            <th class="w-[15%] text-center">Бағалау</th>
+                            <th class="w-[15%] text-center">Ресурс</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Басы -->
+                        <tr>
+                            <td class="font-semibold text-center">Сабақтың басы (5 мин)</td>
+                            <td>${formatText(data.basy.pedagog)}</td>
+                            <td>${formatText(data.basy.okushy)}</td>
+                            <td>${formatText(data.basy.bagalau)}</td>
+                            <td>${formatText(data.basy.resurs)}</td>
+                        </tr>
+                        <!-- Ортасы -->
+                        `;
+            
+            data.ortasy.forEach((item, index) => {
+                previewHtml += `
+                        <tr>
+                            <td class="font-semibold text-center">Сабақтың ортасы (35 мин)</td>
+                            <td>${formatText(item.pedagog)}</td>
+                            <td>${formatText(item.okushy)}</td>
+                            <td>${formatText(item.bagalau)}</td>
+                            <td>${formatText(item.resurs)}</td>
+                        </tr>`;
+            });
+
+            previewHtml += `
+                        <!-- Соңы -->
+                        <tr>
+                            <td class="font-semibold text-center">Сабақтың соңы (5 мин)</td>
+                            <td>${formatText(data.sony.pedagog)}</td>
+                            <td>${formatText(data.sony.okushy)}</td>
+                            <td>${formatText(data.sony.bagalau)}</td>
+                            <td>${formatText(data.sony.resurs)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            `;
+            previewContainer.innerHTML = previewHtml;
+
+            // 2. WORD-ҚА АРНАЛҒАН ЖАСЫРЫН КЕСТЕ (Қатаң пішім, созылмауы үшін colgroup қолданылады)
+            const baseStyle = "border: 1pt solid black; padding: 4px; font-family: 'Times New Roman', Times, serif; font-size: 11pt; vertical-align: top; word-break: break-word; overflow-wrap: break-word;";
+            const thStyle = baseStyle + " font-weight: bold; background-color: #f2f2f2; text-align: left;";
+            const centerThStyle = thStyle + " text-align: center;";
+            
+            let wordHtml = `
+                <div style="font-family: 'Times New Roman', Times, serif;">
+                    <p style="text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 10px;">Қысқа мерзімді (сабақ) жоспар</p>
+                    <table width="100%" border="1" cellpadding="4" cellspacing="0" style="width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed; word-break: break-word;">
+                        <colgroup><col width="20%"><col width="30%"><col width="20%"><col width="30%"></colgroup>
+                        <tbody>
+                            <tr>
+                                <th style="${thStyle}">Бөлім:</th>
+                                <td style="${baseStyle}">${formData.section}</td>
+                                <th style="${thStyle}">Мектеп:</th>
+                                <td style="${baseStyle}">${formData.school}</td>
+                            </tr>
+                            <tr>
+                                <th style="${thStyle}">Пәні:</th>
+                                <td style="${baseStyle}">${formData.subject}</td>
+                                <th style="${thStyle}">Мұғалім:</th>
+                                <td style="${baseStyle}">${formData.teacher}</td>
+                            </tr>
+                            <tr>
+                                <th style="${thStyle}">Күні:</th>
+                                <td style="${baseStyle}" colspan="3">${formData.date}</td>
+                            </tr>
+                            <tr>
+                                <th style="${thStyle}">Сынып: ${formData.grade}</th>
+                                <td style="${baseStyle}">Қатысқандар саны: </td>
+                                <th style="${thStyle}">Қатыспағандар:</th>
+                                <td style="${baseStyle}"></td>
+                            </tr>
+                            <tr>
+                                <th style="${thStyle}">Тақырып:</th>
+                                <td style="${baseStyle} font-weight: bold;" colspan="3">${formData.topic}</td>
+                            </tr>
+                            <tr>
+                                <th style="${thStyle}">Оқу мақсаты:</th>
+                                <td style="${baseStyle}" colspan="3">${formatWordText(formData.objectives)}</td>
+                            </tr>
+                            <tr>
+                                <th style="${thStyle}">Сабақ мақсаты:</th>
+                                <td style="${baseStyle}" colspan="3">${formatWordText(data.sabakMaksaty)}</td>
+                            </tr>
+                            <tr>
+                                <th style="${thStyle}">Құндылықтар:</th>
+                                <td style="${baseStyle}" colspan="3">${formatWordText(data.kundylyktar)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p style="text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 10px;">Сабақтың барысы</p>
+                    <table width="100%" border="1" cellpadding="4" cellspacing="0" style="width: 100%; border-collapse: collapse; table-layout: fixed; word-break: break-word;">
+                        <colgroup><col width="10%"><col width="25%"><col width="45%"><col width="10%"><col width="10%"></colgroup>
+                        <thead>
+                            <tr>
+                                <th style="${centerThStyle}">Сабақ кезеңі/Уақыт</th>
+                                <th style="${centerThStyle}">Педагогтің әрекеті</th>
+                                <th style="${centerThStyle}">Оқушының әрекеті</th>
+                                <th style="${centerThStyle}">Бағалау</th>
+                                <th style="${centerThStyle}">Ресурс</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="${baseStyle} text-align: center; font-weight: bold;">Сабақтың басы (5 мин)</td>
+                                <td style="${baseStyle}">${formatWordText(data.basy.pedagog)}</td>
+                                <td style="${baseStyle}">${formatWordText(data.basy.okushy)}</td>
+                                <td style="${baseStyle}">${formatWordText(data.basy.bagalau)}</td>
+                                <td style="${baseStyle}">${formatWordText(data.basy.resurs)}</td>
+                            </tr>
+                            `;
+                            
+            data.ortasy.forEach((item) => {
+                wordHtml += `
+                            <tr>
+                                <td style="${baseStyle} text-align: center; font-weight: bold;">Сабақтың ортасы (35 мин)</td>
+                                <td style="${baseStyle}">${formatWordText(item.pedagog)}</td>
+                                <td style="${baseStyle}">${formatWordText(item.okushy)}</td>
+                                <td style="${baseStyle}">${formatWordText(item.bagalau)}</td>
+                                <td style="${baseStyle}">${formatWordText(item.resurs)}</td>
+                            </tr>`;
+            });
+
+            wordHtml += `
+                            <tr>
+                                <td style="${baseStyle} text-align: center; font-weight: bold;">Сабақтың соңы (5 мин)</td>
+                                <td style="${baseStyle}">${formatWordText(data.sony.pedagog)}</td>
+                                <td style="${baseStyle}">${formatWordText(data.sony.okushy)}</td>
+                                <td style="${baseStyle}">${formatWordText(data.sony.bagalau)}</td>
+                                <td style="${baseStyle}">${formatWordText(data.sony.resurs)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            wordExportContainer.innerHTML = wordHtml;
+
+            // 3. ЖАЙ КӨШІРУГЕ АРНАЛҒАН КЕСТЕ (Inline стильдерсіз, Word өзі реттейді)
+            let plainHtml = `
+                <div>
+                    <h3>Қысқа мерзімді (сабақ) жоспар</h3>
+                    <table border="1">
+                        <tbody>
+                            <tr>
+                                <th>Бөлім:</th>
+                                <td>${formData.section}</td>
+                                <th>Мектеп:</th>
+                                <td>${formData.school}</td>
+                            </tr>
+                            <tr>
+                                <th>Пәні:</th>
+                                <td>${formData.subject}</td>
+                                <th>Мұғалім:</th>
+                                <td>${formData.teacher}</td>
+                            </tr>
+                            <tr>
+                                <th>Күні:</th>
+                                <td colspan="3">${formData.date}</td>
+                            </tr>
+                            <tr>
+                                <th>Сынып: ${formData.grade}</th>
+                                <td>Қатысқандар саны: </td>
+                                <th>Қатыспағандар:</th>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <th>Тақырып:</th>
+                                <td colspan="3"><strong>${formData.topic}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>Оқу мақсаты:</th>
+                                <td colspan="3">${formatPlainText(formData.objectives)}</td>
+                            </tr>
+                            <tr>
+                                <th>Сабақ мақсаты:</th>
+                                <td colspan="3">${formatPlainText(data.sabakMaksaty)}</td>
+                            </tr>
+                            <tr>
+                                <th>Құндылықтар:</th>
+                                <td colspan="3">${formatPlainText(data.kundylyktar)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <br>
+                    <h3>Сабақтың барысы</h3>
+                    <table border="1">
+                        <thead>
+                            <tr>
+                                <th>Сабақ кезеңі/Уақыт</th>
+                                <th>Педагогтің әрекеті</th>
+                                <th>Оқушының әрекеті</th>
+                                <th>Бағалау</th>
+                                <th>Ресурс</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Сабақтың басы (5 мин)</strong></td>
+                                <td>${formatPlainText(data.basy.pedagog)}</td>
+                                <td>${formatPlainText(data.basy.okushy)}</td>
+                                <td>${formatPlainText(data.basy.bagalau)}</td>
+                                <td>${formatPlainText(data.basy.resurs)}</td>
+                            </tr>
+                            `;
+                            
+            data.ortasy.forEach((item) => {
+                plainHtml += `
+                            <tr>
+                                <td><strong>Сабақтың ортасы (35 мин)</strong></td>
+                                <td>${formatPlainText(item.pedagog)}</td>
+                                <td>${formatPlainText(item.okushy)}</td>
+                                <td>${formatPlainText(item.bagalau)}</td>
+                                <td>${formatPlainText(item.resurs)}</td>
+                            </tr>`;
+            });
+
+            plainHtml += `
+                            <tr>
+                                <td><strong>Сабақтың соңы (5 мин)</strong></td>
+                                <td>${formatPlainText(data.sony.pedagog)}</td>
+                                <td>${formatPlainText(data.sony.okushy)}</td>
+                                <td>${formatPlainText(data.sony.bagalau)}</td>
+                                <td>${formatPlainText(data.sony.resurs)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            wordExportContainerPlain.innerHTML = plainHtml;
+        }
+
+        // Ортақ көшіру функциясы
+        function copyToClipboard(containerId, successMsg) {
+            try {
+                const container = document.getElementById(containerId);
+                const range = document.createRange();
+                range.selectNodeContents(container);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+
+                const successful = document.execCommand('copy');
+                selection.removeAllRanges();
+
+                if (successful) {
+                    showToast(successMsg);
+                } else {
+                    showToast("Көшіру мүмкін болмады.");
+                }
+            } catch (err) {
+                console.error("Көшіру қатесі: ", err);
+                showToast("Браузер бұл функцияны қолдамайды.");
+            }
+        }
+
+        copyBtn.addEventListener('click', () => {
+            copyToClipboard('wordExportContainer', "Қатаң пішімделген кесте көшірілді! Word-қа қоя беріңіз (Ctrl+V).");
+        });
+
+        copyBtnPlain.addEventListener('click', () => {
+            copyToClipboard('wordExportContainerPlain', "Таза кесте көшірілді! Word-та бетке өзі бейімделеді.");
+        });
+    </script>
+</body>
+</html>
